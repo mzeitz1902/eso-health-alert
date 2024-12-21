@@ -7,27 +7,25 @@ local LowHealthAlert = {
 -- Initialize addon variables
 local function Initialize()
     LowHealthAlert.lastPlayedSound = {}
-    LowHealthAlert.healthThreshold = 0.80 -- 50% health threshold
+    LowHealthAlert.healthThreshold = 0.50 -- 50% health threshold
 end
 
 -- Function to play sound
 local function PlayAlertSound()
-    PlaySound(SOUNDS.ABILITY_COMPANION_ULTIMATE_READY) -- You can change this to another game sound
+    PlaySound(SOUNDS.DUEL_START)
 end
 
--- Function to check unit health
-local function CheckUnitHealth(unitTag)
-    if not DoesUnitExist(unitTag) then return end
+-- Event handler for health changes
+local function OnHealthChanged(eventCode, unitTag, powerType, powerValue, powerMax)
+    -- Only proceed if we have valid health values and unit exists
+    if not (powerValue and powerMax and DoesUnitExist(unitTag)) then return end
     if not IsUnitAttackable(unitTag) then return end
 
-    -- Get current and max health
-    local currentHealth = GetUnitHealth(unitTag)
-    local maxHealth = GetUnitMaxHealth(unitTag)
-    local healthPercent = currentHealth / maxHealth
+    local healthPercent = powerValue / powerMax
 
-    -- Check if health is below threshold and we haven't recently played a sound for this unit
+    -- Check if health is below threshold
     if healthPercent <= LowHealthAlert.healthThreshold then
-        local unitId = GetUnitDisplayName(unitTag) or unitTag
+        local unitId = unitTag
         local currentTime = GetGameTimeMilliseconds()
         
         -- Only play sound if we haven't played one for this unit in the last 5 seconds
@@ -39,22 +37,15 @@ local function CheckUnitHealth(unitTag)
     end
 end
 
--- Event handler for health changes
-local function OnHealthChanged(_, unitTag, _, _, powerValue, _, powerMax)
-    if powerValue and powerMax then
-        CheckUnitHealth(unitTag)
-    end
-end
-
 -- Register events when addon loads
 local function OnAddonLoaded(event, addonName)
     if addonName ~= LowHealthAlert.name then return end
     
     Initialize()
     
-    -- Register for combat events
+    -- Register for combat events with correct health flag
     EVENT_MANAGER:RegisterForEvent(LowHealthAlert.name, EVENT_POWER_UPDATE, OnHealthChanged)
-    EVENT_MANAGER:AddFilterForEvent(LowHealthAlert.name, EVENT_POWER_UPDATE, REGISTER_FILTER_POWER_TYPE, POWERTYPE_HEALTH)
+    EVENT_MANAGER:AddFilterForEvent(LowHealthAlert.name, EVENT_POWER_UPDATE, REGISTER_FILTER_POWER_TYPE, COMBAT_MECHANIC_FLAGS_HEALTH)
     EVENT_MANAGER:AddFilterForEvent(LowHealthAlert.name, EVENT_POWER_UPDATE, REGISTER_FILTER_UNIT_TAG_PREFIX, "reticleover")
 end
 
